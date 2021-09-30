@@ -587,7 +587,14 @@ int main(int argc, char *argv[]) {
             strcpy(temp_base, getenv("TMPDIR"));
     }
 
-    fs_offset = appimage_get_elf_size(appimage_path);
+    // fs_offset = appimage_get_elf_size(appimage_path);
+    do {
+      unsigned long offset = 0;
+      unsigned long length = 0;
+      if (appimage_get_elf_section_offset_and_length(appimage_path, ".aimg_sqfs", &offset, &length)) {
+        fs_offset = offset;
+      }
+    } while(0);
 
     // error check
     if (fs_offset < 0) {
