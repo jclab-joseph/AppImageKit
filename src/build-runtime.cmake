@@ -154,7 +154,7 @@ if(APPIMAGEKIT_EMBED_MAGIC_BYTES)
     add_custom_command(
         TARGET runtime
         POST_BUILD
-        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/embed-magic-bytes-in-file.sh ${CMAKE_CURRENT_BINARY_DIR}/runtime
+	COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/embed-magic-bytes-in-file.sh $<TARGET_FILE:runtime>
     )
 endif()
 
@@ -163,5 +163,5 @@ add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/runtime_embed.o
     COMMAND ${XXD} -i runtime | ${CMAKE_C_COMPILER} -c -x c - -o runtime_embed.o
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    MAIN_DEPENDENCY runtime
+    DEPENDS runtime
 )

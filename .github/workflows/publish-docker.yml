@@ -19,7 +19,8 @@ jobs:
           submodules: 'recursive'
 
       - name: Set env
-        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/v}" | tee -a $GITHUB_ENV
+        run: |
+          (echo "${GITHUB_REF}" | grep "refs/tags" >/dev/null && echo "IMAGE_VERSION=tag-${GITHUB_REF#refs/*/v}" || echo "IMAGE_VERSION=commit-${GITHUB_SHA::8}") >> $GITHUB_ENV
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
@@ -52,8 +53,8 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
           tags: |
-            ghcr.io/${{ github.repository_owner }}/AppImageKit:latest-${{ matrix.platform.name }}
-            ghcr.io/${{ github.repository_owner }}/AppImageKit:release-${{ env.RELEASE_VERSION }}-${{ matrix.platform.name }}
+            ghcr.io/${{ github.repository_owner }}/appimagekit:latest-${{ matrix.platform.name }}
+            ghcr.io/${{ github.repository_owner }}/appimagekit:release-${{ env.IMAGE_VERSION }}-${{ matrix.platform.name }}
 
       - name: Move cache
         run: |
