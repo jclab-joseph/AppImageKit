@@ -124,12 +124,23 @@ if(NOT USE_SYSTEM_MKSQUASHFS)
             DESTINATION ${AUXILIARY_FILES_DESTINATION}
             COMPONENT applications
         )
+        install(
+            TARGETS runtime
+            RUNTIME DESTINATION ${AUXILIARY_FILES_DESTINATION}
+            COMPONENT applications
+        )
     else()
         install(
             PROGRAMS ${mksquashfs_INSTALL_DIR}/mksquashfs
             DESTINATION bin
             COMPONENT applications
         )
+        install(
+            TARGETS runtime
+            RUNTIME DESTINATION bin
+            COMPONENT applications
+        )
+
     endif()
 endif()
 
@@ -150,7 +161,7 @@ install(
 
 # Configure appimagetool component
 install(
-    TARGETS runtime appimagetool AppRun
+    TARGETS appimagetool AppRun
     RUNTIME DESTINATION bin COMPONENT appimagetool EXCLUDE_FROM_ALL
 )
 
