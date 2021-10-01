@@ -64,6 +64,8 @@
  */
 #define EXIT_EXECERROR  127     /* Execution error exit status.  */
 
+extern int runtime_preloader(const char* appimage_path, const char* argv0_path);
+
 //#include "notify.c"
 extern int notify(char *title, char *body, int timeout);
 struct stat st;
@@ -800,6 +802,14 @@ int main(int argc, char *argv[]) {
     if((arg && strncmp(arg, "appimage-", 8) == 0) && (arg && strcmp(arg,"appimage-mount")!=0)) {
         fprintf(stderr,"--%s is not yet implemented in version %s\n", arg, GIT_COMMIT);
         exit(1);
+    }
+
+    int preloader_rc = runtime_preloader(appimage_path, argv0_path);
+
+    if (preloader_rc == 143) {
+      exit(0);
+    } else if (preloader_rc) {
+      exit(preloader_rc);
     }
 
     LOAD_LIBRARY; /* exit if libfuse is missing */
