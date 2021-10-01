@@ -21,6 +21,7 @@ RUN mkdir -p /work/dist && \
 
 
 FROM ubuntu:20.04
+# APPIMAGE_BUILDER_IMAGE
 LABEL org.opencontainers.image.source=https://github.com/jclab-joseph/AppImageKit
 ARG DEBIAN_FRONTEND=noninteractive
 
