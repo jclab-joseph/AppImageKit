@@ -132,7 +132,8 @@ int runtime_preloader_exec(const char* appimage_path, const char* argv0_path) {
   int r;
   struct archive *a = NULL;
 
-  if (!appimage_get_elf_section_offset_and_length(appimage_path, ".aimg_pre_tar", &offset, &length)) {
+  appimage_get_elf_section_offset_and_length(appimage_path, ".aimg_pre_tar", &offset, &length);
+  if (!offset || !length) {
     return 0;
   }
 
