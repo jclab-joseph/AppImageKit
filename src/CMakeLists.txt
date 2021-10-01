@@ -120,16 +120,27 @@ target_link_libraries(digest_md5
 if(NOT USE_SYSTEM_MKSQUASHFS)
     if(AUXILIARY_FILES_DESTINATION)
         install(
-            PROGRAMS ${mksquashfs_INSTALL_DIR}/mksquashfs ${CMAKE_CURRENT_BINARY_DIR}/runtime
+            PROGRAMS ${mksquashfs_INSTALL_DIR}/mksquashfs
             DESTINATION ${AUXILIARY_FILES_DESTINATION}
+            COMPONENT applications
+        )
+        install(
+            TARGETS runtime
+            RUNTIME DESTINATION ${AUXILIARY_FILES_DESTINATION}
             COMPONENT applications
         )
     else()
         install(
-            PROGRAMS ${mksquashfs_INSTALL_DIR}/mksquashfs ${CMAKE_CURRENT_BINARY_DIR}/runtime
+            PROGRAMS ${mksquashfs_INSTALL_DIR}/mksquashfs
             DESTINATION bin
             COMPONENT applications
         )
+        install(
+            TARGETS runtime
+            RUNTIME DESTINATION bin
+            COMPONENT applications
+        )
+
     endif()
 endif()
 

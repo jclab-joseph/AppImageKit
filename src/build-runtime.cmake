@@ -21,10 +21,20 @@ else()
     get_target_property(squashfuse_INCLUDE_DIRS libsquashfuse INTERFACE_INCLUDE_DIRECTORIES)
 endif()
 
+if (NOT TARGET libsquashfuse)
+    message(FATAL_ERROR "TARGET NOT found libarchive")
+else()
+    get_target_property(archive_INCLUDE_DIRS libarchive INTERFACE_INCLUDE_DIRECTORIES)
+endif()
+
+if (NOT GIT_COMMIT)
+    set(GIT_COMMIT master)
+endif()
+
 # must not include -flto in the following flags, otherwise the data sections will be stripped out
 set(runtime_cflags
     -std=c99 -ffunction-sections -fdata-sections
-    -DGIT_COMMIT=\\"${GIT_COMMIT}\\"
+    -DGIT_COMMIT="${GIT_COMMIT}"
     -I${squashfuse_INCLUDE_DIRS}
     -I${PROJECT_SOURCE_DIR}/include
     -I${PROJECT_SOURCE_DIR}/lib/libappimage/include
@@ -69,9 +79,9 @@ add_custom_command(
 # TODO: find out how this .o object can be generated using a normal add_executable call
 # that'd allow us to get rid of the -I parameters in runtime_cflags
 add_custom_command(
-    MAIN_DEPENDENCY runtime.c
+    MAIN_DEPENDENCY dummy.c
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/runtime.0.o
-    COMMAND ${CMAKE_C_COMPILER} ${runtime_cflags} -c ${CMAKE_CURRENT_SOURCE_DIR}/runtime.c -o runtime.0.o
+    COMMAND ${CMAKE_C_COMPILER} -c ${CMAKE_CURRENT_SOURCE_DIR}/dummy.c -o runtime.0.o
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
@@ -108,10 +118,19 @@ add_custom_command(
 
 # add the runtime as a normal executable
 # CLion will recognize it as a normal executable, one can simply step into the code
-add_executable(runtime ${CMAKE_CURRENT_BINARY_DIR}/runtime.4.o notify.c)
+add_executable(runtime
+        ${CMAKE_CURRENT_SOURCE_DIR}/runtime_main.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/runtime_preloader.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/notify.c
+        ${CMAKE_CURRENT_BINARY_DIR}/runtime.4.o
+        )
+target_compile_options(runtime PRIVATE ${runtime_cflags})
+target_include_directories(runtime PRIVATE
+        ${archive_INCLUDE_DIRS}
+        )
 # CMake gets confused by the .o object, therefore we need to tell it that it shall link everything using the C compiler
 set_property(TARGET runtime PROPERTY LINKER_LANGUAGE C)
-target_link_libraries(runtime PRIVATE libsquashfuse dl xz libzlib pthread libappimage_shared libappimage_hashlib)
+target_link_libraries(runtime PRIVATE libsquashfuse dl xz libzlib pthread libappimage_shared libappimage_hashlib libarchive)
 if(COMMAND target_link_options)
     target_link_options(runtime PRIVATE ${runtime_ldflags})
 else()
@@ -135,7 +154,7 @@ if(APPIMAGEKIT_EMBED_MAGIC_BYTES)
     add_custom_command(
         TARGET runtime
         POST_BUILD
-        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/embed-magic-bytes-in-file.sh ${CMAKE_CURRENT_BINARY_DIR}/runtime
+	COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/embed-magic-bytes-in-file.sh $<TARGET_FILE:runtime>
     )
 endif()
 
@@ -144,5 +163,5 @@ add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/runtime_embed.o
     COMMAND ${XXD} -i runtime | ${CMAKE_C_COMPILER} -c -x c - -o runtime_embed.o
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    MAIN_DEPENDENCY runtime
+    DEPENDS runtime
 )

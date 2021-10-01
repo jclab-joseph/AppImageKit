@@ -64,6 +64,10 @@
  */
 #define EXIT_EXECERROR  127     /* Execution error exit status.  */
 
+extern char runtime_preloader_directory[];
+extern int runtime_preloader_exec(const char* appimage_path, const char* argv0_path);
+extern void runtime_preloader_cleanup();
+
 //#include "notify.c"
 extern int notify(char *title, char *body, int timeout);
 struct stat st;
@@ -587,7 +591,14 @@ int main(int argc, char *argv[]) {
             strcpy(temp_base, getenv("TMPDIR"));
     }
 
-    fs_offset = appimage_get_elf_size(appimage_path);
+    // fs_offset = appimage_get_elf_size(appimage_path);
+    do {
+      unsigned long offset = 0;
+      unsigned long length = 0;
+      if (appimage_get_elf_section_offset_and_length(appimage_path, ".aimg_sqfs", &offset, &length)) {
+        fs_offset = offset;
+      }
+    } while(0);
 
     // error check
     if (fs_offset < 0) {
@@ -795,6 +806,14 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
+    int preloader_rc = runtime_preloader_exec(appimage_path, argv0_path);
+
+    if (preloader_rc == 143) {
+      exit(0);
+    } else if (preloader_rc) {
+      exit(preloader_rc);
+    }
+
     LOAD_LIBRARY; /* exit if libfuse is missing */
 
     int dir_fd, res;
@@ -856,6 +875,8 @@ int main(int argc, char *argv[]) {
             "for more information";
             notify(title, body, 0); // 3 seconds timeout
         };
+
+        runtime_preloader_cleanup();
     } else {
         /* in parent, child is $pid */
         int c;
@@ -911,6 +932,9 @@ int main(int argc, char *argv[]) {
         setenv( "APPIMAGE", fullpath, 1 );
         setenv( "ARGV0", argv0_path, 1 );
         setenv( "APPDIR", mount_dir, 1 );
+        if (runtime_preloader_directory[0]) {
+          setenv( "APPIMAGE_PREDIR", runtime_preloader_directory, 1 );
+        }
 
         char portable_home_dir[PATH_MAX];
         char portable_config_dir[PATH_MAX];
