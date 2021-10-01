@@ -21,6 +21,8 @@
 #include <appimage/appimage_shared.h>
 #include <linux/limits.h>
 
+char runtime_preloader_directory[PATH_MAX] = {0};
+
 static int remove_file(const char *pathname, const struct stat *sbuf, int type, struct FTW *ftwb)
 {
   if(remove(pathname) < 0)
@@ -107,7 +109,7 @@ static int extract(struct archive* a, const char* target_directory)
  *  143   : Exit without mount
  *  other : exit with error code
  */
-int runtime_preloader(const char* appimage_path, const char* argv0_path) {
+int runtime_preloader_exec(const char* appimage_path, const char* argv0_path) {
   int rc = 0;
 
   unsigned long offset = 0;
@@ -115,7 +117,6 @@ int runtime_preloader(const char* appimage_path, const char* argv0_path) {
 
   int fd = 0;
   const char* map = NULL;
-  char temp_dir[PATH_MAX] = {0};
   char cmd[PATH_MAX] = {0};
   char fullpath[PATH_MAX] = {0};
 
@@ -136,8 +137,8 @@ int runtime_preloader(const char* appimage_path, const char* argv0_path) {
   }
 
   do {
-    snprintf(temp_dir, sizeof(temp_dir), "%s/.aipXXXXXX", P_tmpdir);
-    if (!mkdtemp(temp_dir)) {
+    snprintf(runtime_preloader_directory, sizeof(runtime_preloader_directory), "%s/.aipXXXXXX", P_tmpdir);
+    if (!mkdtemp(runtime_preloader_directory)) {
       fprintf(stderr, "mktemp failed: %d\n", errno);
       rc = errno;
       break;
@@ -166,14 +167,14 @@ int runtime_preloader(const char* appimage_path, const char* argv0_path) {
       break;
     }
 
-    extract(a, temp_dir);
+    extract(a, runtime_preloader_directory);
     archive_read_close(a);
     archive_read_close(a);
 
     setenv( "ARGV0", argv0_path, 1 );
     setenv( "APPIMAGE", fullpath, 1);
-    setenv( "APPIMAGE_PREDIR", temp_dir, 1);
-    snprintf(cmd, sizeof(cmd), "%s/start", temp_dir);
+    setenv("APPIMAGE_PREDIR", runtime_preloader_directory, 1);
+    snprintf(cmd, sizeof(cmd), "%s/start", runtime_preloader_directory);
     rc = system(cmd);
   } while (0);
 
@@ -188,10 +189,12 @@ int runtime_preloader(const char* appimage_path, const char* argv0_path) {
     close(fd);
   }
 
-  if (temp_dir[0]) {
-    nftw(temp_dir, remove_file, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS);
-    rmdir(temp_dir);
-  }
-
   return rc;
+}
+
+void runtime_preloader_cleanup() {
+  if (runtime_preloader_directory[0]) {
+    nftw(runtime_preloader_directory, remove_file, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS);
+    rmdir(runtime_preloader_directory);
+  }
 }

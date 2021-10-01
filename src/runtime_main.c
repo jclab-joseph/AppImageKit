@@ -64,7 +64,9 @@
  */
 #define EXIT_EXECERROR  127     /* Execution error exit status.  */
 
-extern int runtime_preloader(const char* appimage_path, const char* argv0_path);
+extern char runtime_preloader_directory[];
+extern int runtime_preloader_exec(const char* appimage_path, const char* argv0_path);
+extern void runtime_preloader_cleanup();
 
 //#include "notify.c"
 extern int notify(char *title, char *body, int timeout);
@@ -804,7 +806,7 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    int preloader_rc = runtime_preloader(appimage_path, argv0_path);
+    int preloader_rc = runtime_preloader_exec(appimage_path, argv0_path);
 
     if (preloader_rc == 143) {
       exit(0);
@@ -873,6 +875,8 @@ int main(int argc, char *argv[]) {
             "for more information";
             notify(title, body, 0); // 3 seconds timeout
         };
+
+        runtime_preloader_cleanup();
     } else {
         /* in parent, child is $pid */
         int c;
@@ -928,6 +932,9 @@ int main(int argc, char *argv[]) {
         setenv( "APPIMAGE", fullpath, 1 );
         setenv( "ARGV0", argv0_path, 1 );
         setenv( "APPDIR", mount_dir, 1 );
+        if (runtime_preloader_directory[0]) {
+          setenv( "APPIMAGE_PREDIR", runtime_preloader_directory, 1 );
+        }
 
         char portable_home_dir[PATH_MAX];
         char portable_config_dir[PATH_MAX];
