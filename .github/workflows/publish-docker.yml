@@ -32,8 +32,8 @@ jobs:
         uses: actions/cache@v2
         with:
           path: /tmp/.buildx-cache
-          key: "${{ runner.os }}-${{ env.runner_arch }}-buildx01-${{ github.sha }}"
-          restore-keys: "${{ runner.os }}-${{ env.runner_arch }}-buildx01-"
+          key: "${{ runner.os }}-${{ matrix.platform.name }}-buildx01-${{ github.sha }}"
+          restore-keys: "${{ runner.os }}-${{ matrix.platform.name }}-buildx01-"
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v1
@@ -54,7 +54,7 @@ jobs:
           cache-to: type=local,dest=/tmp/.buildx-cache-new
           tags: |
             ghcr.io/${{ github.repository_owner }}/appimagekit:latest-${{ matrix.platform.name }}
-            ghcr.io/${{ github.repository_owner }}/appimagekit:release-${{ env.IMAGE_VERSION }}-${{ matrix.platform.name }}
+            ghcr.io/${{ github.repository_owner }}/appimagekit:${{ env.IMAGE_VERSION }}-${{ matrix.platform.name }}
 
       - name: Move cache
         run: |
