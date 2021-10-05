@@ -20,6 +20,7 @@ jobs:
 
       - name: Set env
         run: |
+          (echo "${GITHUB_REF}" | grep "refs/tags/continuous" >/dev/null && echo "IMAGE_VERSION=tag-continuous" >> $GITHUB_ENV) || \
           (echo "${GITHUB_REF}" | grep "refs/tags" >/dev/null && echo "IMAGE_VERSION=tag-${GITHUB_REF#refs/*/v}" || echo "IMAGE_VERSION=commit-${GITHUB_SHA::8}") >> $GITHUB_ENV
 
       - name: Set up QEMU
@@ -53,6 +54,8 @@ jobs:
           cache-to: type=local,dest=/tmp/.buildx-cache-new
           target: assets
           outputs: type=local,dest=out
+          build-args: |
+            ARCH=${{ matrix.platform.name }}
 
       - name: Push
         uses: docker/build-push-action@v2
@@ -62,6 +65,8 @@ jobs:
           file: linux.Dockerfile
           cache-from: type=local,src=/tmp/.buildx-cache-new
           cache-to: type=local,dest=/tmp/.buildx-cache-new
+          build-args: |
+            ARCH=${{ matrix.platform.name }}
           push: ${{ startsWith(github.ref, 'refs/tags/') }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/appimagekit:latest-${{ matrix.platform.name }}
@@ -97,4 +102,4 @@ jobs:
           wget -q https://github.com/TheAssassin/pyuploadtool/releases/download/continuous/pyuploadtool-x86_64.AppImage
           chmod +x pyuploadtool-x86_64.AppImage
           ls -al
-          ./pyuploadtool-x86_64.AppImage *
+          ./pyuploadtool-x86_64.AppImage appimagetool-*.build/*
