@@ -20,3 +20,5 @@ README.*
 
 *.Dockerfile
 Dockerfile
+
+out

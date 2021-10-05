@@ -19,6 +19,12 @@ RUN mkdir -p /work/dist && \
     cmake --install . --prefix /work/dist
 
 
+FROM scratch as assets
+ARG ARCH
+COPY --from=builder [ "/work/dist/bin/AppRun", "/AppRun-${ARCH}" ]
+COPY --from=builder [ "/work/dist/bin/digest", "/digest-${ARCH}" ]
+COPY --from=builder [ "/work/dist/bin/validate", "/validate-${ARCH}" ]
+COPY --from=builder [ "/work/build/src/runtime", "/runtime-${ARCH}" ]
 
 FROM ubuntu:20.04
 # APPIMAGE_BUILDER_IMAGE
