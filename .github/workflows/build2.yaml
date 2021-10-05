@@ -52,7 +52,7 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
           target: assets
-          output: type=local,dest=out
+          outputs: type=local,dest=out
 
       - name: Push
         uses: docker/build-push-action@v2
@@ -76,7 +76,7 @@ jobs:
         uses: actions/upload-artifact@v1.0.0
         with:
           # Artifact name
-          name: appimagetool-${{ matrix.ARCH }}.build
+          name: appimagetool-${{ matrix.platform.name }}.build
           path: out/
 
   upload:
