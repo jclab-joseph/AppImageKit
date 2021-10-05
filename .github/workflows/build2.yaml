@@ -60,7 +60,7 @@ jobs:
           platforms: ${{ matrix.platform.dockerPlatform }}
           context: .
           file: linux.Dockerfile
-          cache-from: type=local,dest=/tmp/.buildx-cache-new
+          cache-from: type=local,src=/tmp/.buildx-cache-new
           cache-to: type=local,dest=/tmp/.buildx-cache-new
           push: ${{ startsWith(github.ref, 'refs/tags/') }}
           tags: |
