@@ -234,6 +234,7 @@ print_help(const char *appimage_path)
         "  --appimage-signature            Print digital signature embedded in AppImage\n"
         "  --appimage-updateinfo[rmation]  Print update info embedded in AppImage\n"
         "  --appimage-version              Print version of AppImageKit\n"
+        "  --appimage-mount-options OPTS   Mount options\n"
         "\n"
         "Portable home:\n"
         "\n"
@@ -532,6 +533,9 @@ int main(int argc, char *argv[]) {
     char appimage_path[PATH_MAX];
     char argv0_path[PATH_MAX];
     char * arg;
+    int ignored_args = 0;
+    const char* mount_options = NULL;
+    int flag_extract_and_run = 0;
 
     /* We might want to operate on a target appimage rather than this file itself,
      * e.g., for appimaged which must not run untrusted code from random AppImages.
@@ -606,51 +610,53 @@ int main(int argc, char *argv[]) {
         exit(EXIT_EXECERROR);
     }
 
-    arg=getArg(argc,argv,'-');
+    for (; (argc - ignored_args) > 1; ignored_args++) {
+        char* current = argv[1 + ignored_args];
+        if (strcmp(current, "--appimage-help") == 0) {
+            char fullpath[PATH_MAX];
 
-    /* Print the help and then exit */
-    if(arg && strcmp(arg,"appimage-help")==0) {
-        char fullpath[PATH_MAX];
+            ssize_t length = readlink(appimage_path, fullpath, sizeof(fullpath));
+            if (length < 0) {
+                fprintf(stderr, "Error getting realpath for %s\n", appimage_path);
+                exit(EXIT_EXECERROR);
+            }
+            fullpath[length] = '\0';
 
-        ssize_t length = readlink(appimage_path, fullpath, sizeof(fullpath));
-        if (length < 0) {
-            fprintf(stderr, "Error getting realpath for %s\n", appimage_path);
-            exit(EXIT_EXECERROR);
-        }
-        fullpath[length] = '\0';
+            print_help(fullpath);
+            exit(0);
+        } else if (strcmp(current, "--appimage-offset") == 0) {
+            printf("%lu\n", fs_offset);
+            exit(0);
+        } else if (strcmp(current, "--appimage-extract") == 0) {
+            char* pattern;
 
-        print_help(fullpath);
-        exit(0);
-    }
+            // default use case: use standard prefix
+            if (argc == 2) {
+                pattern = NULL;
+            } else if (argc == 3) {
+                pattern = argv[2];
+            } else {
+                fprintf(stderr, "Unexpected argument count: %d\n", argc - 1);
+                fprintf(stderr, "Usage: %s --appimage-extract [<prefix>]\n", argv0_path);
+                exit(1);
+            }
 
-    /* Just print the offset and then exit */
-    if(arg && strcmp(arg,"appimage-offset")==0) {
-        printf("%lu\n", fs_offset);
-        exit(0);
-    }
+            if (!extract_appimage(appimage_path, "squashfs-root/", pattern, true, true)) {
+                exit(1);
+            }
 
-    arg=getArg(argc,argv,'-');
-
-    /* extract the AppImage */
-    if(arg && strcmp(arg,"appimage-extract")==0) {
-        char* pattern;
-
-        // default use case: use standard prefix
-        if (argc == 2) {
-            pattern = NULL;
-        } else if (argc == 3) {
-            pattern = argv[2];
+            exit(0);
+        } else if (strcmp(current, "--appimage-mount-options") == 0) {
+            ignored_args++;
+            if (argc >= (ignored_args + 1)) {
+                mount_options = argv[1 + ignored_args];
+            }
+        } else if (strcmp(current, "--appimage-extract-and-run") == 0) {
+            flag_extract_and_run = 1;
         } else {
-            fprintf(stderr, "Unexpected argument count: %d\n", argc - 1);
-            fprintf(stderr, "Usage: %s --appimage-extract [<prefix>]\n", argv0_path);
-            exit(1);
+            if (strstr(current, "--")) arg = current + 2;
+            break;
         }
-
-        if (!extract_appimage(appimage_path, "squashfs-root/", pattern, true, true)) {
-            exit(1);
-        }
-
-        exit(0);
     }
 
     // calculate full path of AppImage
@@ -727,13 +733,12 @@ int main(int argc, char *argv[]) {
             strcat(apprun_path, apprun_fname);
 
             // create copy of argument list without the --appimage-extract-and-run parameter
-            char* new_argv[argc];
+
+            char** new_argv = malloc (sizeof (char *) * (argc + 1));
             int new_argc = 0;
             new_argv[new_argc++] = strdup(apprun_path);
-            for (int i = 1; i < argc; ++i) {
-                if (strcmp(argv[i], "--appimage-extract-and-run") != 0) {
-                    new_argv[new_argc++] = strdup(argv[i]);
-                }
+            for (int i = 1; i < (argc - ignored_args); i++) {
+              new_argv[new_argc] = strdup(argv[ignored_args + i]);
             }
             new_argv[new_argc] = NULL;
 
@@ -858,6 +863,10 @@ int main(int argc, char *argv[]) {
 
         char options[100];
         sprintf(options, "ro,offset=%lu", fs_offset);
+        if (mount_options) {
+          strcat(options, ",");
+          strcat(options, mount_options);
+        }
 
         child_argv[0] = dir;
         child_argv[1] = "-o";
@@ -904,8 +913,9 @@ int main(int argc, char *argv[]) {
         close (dir_fd);
 
         real_argv = malloc (sizeof (char *) * (argc + 1));
-        for (i = 0; i < argc; i++) {
-            real_argv[i] = argv[i];
+        real_argv[0] = argv[i];
+        for (i = 1; i < (argc - ignored_args); i++) {
+            real_argv[i] = argv[ignored_args + i];
         }
         real_argv[i] = NULL;
 
