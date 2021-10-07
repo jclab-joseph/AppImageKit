@@ -7,8 +7,11 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <ftw.h>
+#include <spawn.h>
+#include <string.h>
 
 #include <sys/mman.h>
+#include <sys/wait.h>
 
 #if HAVE_LIBARCHIVE3 == 1 // CentOS
 # include <archive3.h>
@@ -20,6 +23,8 @@
 
 #include <appimage/appimage_shared.h>
 #include <linux/limits.h>
+
+extern char **environ;
 
 char runtime_preloader_directory[PATH_MAX] = {0};
 
@@ -109,7 +114,7 @@ static int extract(struct archive* a, const char* target_directory)
  *  143   : Exit without mount
  *  other : exit with error code
  */
-int runtime_preloader_exec(const char* appimage_path, const char* argv0_path) {
+int runtime_preloader_exec(const char* appimage_path, const char* argv0_path, int argc, const char** argv) {
   int rc = 0;
 
   unsigned long offset = 0;
@@ -117,7 +122,7 @@ int runtime_preloader_exec(const char* appimage_path, const char* argv0_path) {
 
   int fd = 0;
   const char* map = NULL;
-  char cmd[PATH_MAX] = {0};
+  char start_file[PATH_MAX] = {0};
   char fullpath[PATH_MAX] = {0};
 
   ssize_t slen;
@@ -175,8 +180,27 @@ int runtime_preloader_exec(const char* appimage_path, const char* argv0_path) {
     setenv( "ARGV0", argv0_path, 1 );
     setenv( "APPIMAGE", fullpath, 1);
     setenv("APPIMAGE_PREDIR", runtime_preloader_directory, 1);
-    snprintf(cmd, sizeof(cmd), "%s/start", runtime_preloader_directory);
-    rc = system(cmd);
+    snprintf(start_file, sizeof(start_file), "%s/start", runtime_preloader_directory);
+
+    pid_t preloader_pid = 0;
+    char** new_argv = malloc (sizeof (char *) * (argc + 1));
+    for (int i=0; i<argc; i++) {
+      new_argv[i] = strdup(argv[i]);
+    }
+    new_argv[argc] = 0;
+    rc = posix_spawn(&preloader_pid, start_file, NULL, NULL, new_argv, environ);
+    if (rc == 0) {
+      int statloc = 0;
+      waitpid(preloader_pid, &statloc, 0);
+      if (WIFEXITED(statloc)) {
+        rc = WEXITSTATUS(statloc);
+      } else {
+        fprintf(stderr, "preloader error: status=%d\n", statloc);
+        rc = 1;
+      }
+    } else {
+      fprintf(stderr, "preloader start failed: %d\n", rc);
+    }
   } while (0);
 
   if (a) {

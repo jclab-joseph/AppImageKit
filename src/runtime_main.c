@@ -65,7 +65,7 @@
 #define EXIT_EXECERROR  127     /* Execution error exit status.  */
 
 extern char runtime_preloader_directory[];
-extern int runtime_preloader_exec(const char* appimage_path, const char* argv0_path);
+extern int runtime_preloader_exec(const char* appimage_path, const char* argv0_path, int argc, const char** argv);
 extern void runtime_preloader_cleanup();
 
 //#include "notify.c"
@@ -815,7 +815,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (!flag_mount_only) {
-        int preloader_rc = runtime_preloader_exec(appimage_path, argv0_path);
+        int preloader_rc = runtime_preloader_exec(appimage_path, argv0_path, argc, argv);
 
         if (preloader_rc == 143) {
             exit(0);
