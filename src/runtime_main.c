@@ -536,6 +536,7 @@ int main(int argc, char *argv[]) {
     int ignored_args = 0;
     const char* mount_options = NULL;
     int flag_extract_and_run = 0;
+    int flag_mount_only = 0;
 
     /* We might want to operate on a target appimage rather than this file itself,
      * e.g., for appimaged which must not run untrusted code from random AppImages.
@@ -653,6 +654,8 @@ int main(int argc, char *argv[]) {
             }
         } else if (strcmp(current, "--appimage-extract-and-run") == 0) {
             flag_extract_and_run = 1;
+        } else if (strcmp(current, "--appimage-mount") == 0) {
+            flag_mount_only = 1;
         } else {
             if (strstr(current, "--")) arg = current + 2;
             break;
@@ -811,12 +814,14 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    int preloader_rc = runtime_preloader_exec(appimage_path, argv0_path);
+    if (!flag_mount_only) {
+        int preloader_rc = runtime_preloader_exec(appimage_path, argv0_path);
 
-    if (preloader_rc == 143) {
-      exit(0);
-    } else if (preloader_rc) {
-      exit(preloader_rc);
+        if (preloader_rc == 143) {
+            exit(0);
+        } else if (preloader_rc) {
+            exit(preloader_rc);
+        }
     }
 
     LOAD_LIBRARY; /* exit if libfuse is missing */
@@ -919,7 +924,7 @@ int main(int argc, char *argv[]) {
         }
         real_argv[i] = NULL;
 
-        if(arg && strcmp(arg, "appimage-mount") == 0) {
+        if (flag_mount_only) {
             char real_mount_dir[PATH_MAX];
 
             if (realpath(mount_dir, real_mount_dir) == real_mount_dir) {
